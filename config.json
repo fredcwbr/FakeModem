@@ -1,0 +1,47 @@
+{"atResponsesSTR":{"I0" : [["0FFK"  ], "F_ATI" ],
+                "I3" : [["FakeModem 0.1Alfa"  ], "F_ATI" ],
+                "I4" : [["a00F044400FFFF447",
+                        "bF7000",
+                        "r1FFFFFFFFFFFFFFF7"
+                        ] , "F_ATI" ],
+                "DT" : [["CONNECT"] , "F_ATD" ] ,
+                "DP" : [["CONNECT"] , "F_ATD" ],
+                "A" : [["CONNECT"] , "F_ATA" ],
+                "O0" : [["ERROR"] , "F_ATO" ],
+                "O1" : [[] , "F_ATO" ], 
+				"Z" : [[] , "F_ATZ" ],
+				"E" : [[] , "F_ATE" ],
+				"H" : [[] , "F_ATH" ],
+				"S" : [[] , "F_ATS" ]
+			},
+"atResponsesOK": [ "&F",
+	"B",
+	"K",
+	"L",
+	"M",
+	"N",
+	"P",
+	"Q",
+	"V",
+	"W",
+	"X"
+],
+"atDFLReg": {   "S00" :  0, "S01" :  0, "S02" : 43, "S03" : 13, "S04" : 10,
+	"S05" :  8, "S06" :  2, "S07" : 30, "S08" :  2, "S09" :  6,
+	"S10" : 14, "S11" : 70, "S12" : 50, "S18" :  0, "S25" :  5,
+	"S26" :  1, "S36" :  5, "S37" :  0, "S38" : 20, "S44" :  3,
+	"S46" :  2, "S48" :  7, "S49" :  8, "S50" : 16, "S95" :  0,
+	"S182" : "0x20",
+	"S183" : ["0x49","dsfma"],
+	"S184" : ["a00F044400FFFF447",
+			   "bF7000",
+			   "r1FFFFFFFFFFFFFFF7"
+			 ]
+	"S192" : "teste",
+	"S193" : "outro teste teste"
+  } ,
+  "obs": "BO B41 B60 El L2 Ml Nl P QO Vl WO X4 YO NCO &00 &GO &JO &K3 &Q5 &RO &50 &T4 &UO &XO &YO"
+}
+
+
+
