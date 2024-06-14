@@ -3,7 +3,7 @@ FakeModem code
 
 *** IMPORTANT ***
 
-This is alpha code, it's first try, dirty, was not really tested and probably will hurt hoever uses it at this stage.
+This is alpha code, it's first try, dirty, was not really tested and probably will hurt whoever uses it at this stage.
 You have been warned.
 
 In the hopes that it helps someone...
