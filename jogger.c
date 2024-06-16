@@ -17,11 +17,10 @@ char *bfConfig;
 int dump(const char *js, jsmntok_t *t, size_t count, int indent);
 void kyCfg();    
     
-void dummyProc();
-    
+
 //  Ref:: https://pokristensson.com/strmap.html
 //  https://troydhanson.github.io/uthash/userguide.html
-#include <uthash.h>
+#include "uthash/src/uthash.h"
 
 /*
  * Standard POSIX EXTENDED REGEX
@@ -136,9 +135,9 @@ struct atCmds {
     char CMDpfx[SZ_ATCMD_HASHKEY];            /* key */
                                /* AT commands are prefix+CMD+MOD :: charALT + charCMDCODE + charMODIFIER */
                                /* Ex.:  DT ;; &C ;; %K  */ 
-    void (*func)( atCmds *atCmd , ...);
+    void (*func)( char  **cmdIn, atCmds *atCmd , ...);
     enum EcmdRC RC; 
-    void (*cmdProcess)();
+    // void (*cmdProcess)();
     u_regv_t reg_value;        
     //
     int  id;
@@ -147,7 +146,8 @@ struct atCmds {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-
+void dummyProc(char  **cmdIn, atCmds *atCmd , ...);
+    
 
 // State machine ..
 enum mdmSTATE  {COMMAND,DIALING,TRAINING,RINGING,ONLINE,ERROR};
@@ -155,16 +155,16 @@ enum mdmSTATE modemState;
 
 // Fake Modem Function IMPLEMENTATIONS
 //
-void f_trata_OK(atCmds *atCmd , ...);
-void f_trata_ATI(atCmds *atCmd , ...);
-void f_trata_ATD(atCmds *atCmd , ...);
-void f_trata_ATA(atCmds *atCmd , ...);
-void f_trata_ATO(atCmds *atCmd , ...);
-void f_trata_ATH(atCmds *atCmd , ...);
-void f_trata_ATS(atCmds *atCmd , ...);
-void f_trata_ATE(atCmds *atCmd , ...);
-void f_trata_ATZ(atCmds *atCmd , ...);
-void f_trata_ABORT(atCmds *atCmd , ...);
+void f_trata_OK(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATI(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATD(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATA(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATO(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATH(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATS(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATE(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ATZ(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_ABORT(char  **cmdIn, atCmds *atCmd , ...);
 
 enum E_FUNC_AT { F_CMD_ATI,
                  F_CMD_ATD,
@@ -179,7 +179,7 @@ enum E_FUNC_AT { F_CMD_ATI,
 typedef struct  {
     enum E_FUNC_AT ky;
     char *nome;
-    void (*func)(atCmds *atCmd , ...);
+    void (*func)(char  **cmdIn, atCmds *atCmd , ...);
     } k_trata_dict;
 
 //  <KTYPE of processing> <KCONFIGKEY> <function implementation>
@@ -329,10 +329,10 @@ void add_CMDOK(const char *cmd) {
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     }
-    s->cmdProcess = dummyProc;
+    // s->cmdProcess = dummyProc;
     s->reg_value.urv.int_v = -1;
     s->RC = ATRC_OK;
-    s->cmdProcess =  f_trata_OK;
+    s->func =  f_trata_OK;
     printf("Added key %s na hash table \n",wkey);
     pprintAtCmds( __func__, __LINE__ , s );
 }
@@ -348,7 +348,8 @@ void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     }
-    s->cmdProcess = dummyProc;
+    // s->cmdProcess = dummyProc;
+	s->func = dummyProc;
     s->reg_value = Vl ;
     s->RC = ATRC_OK;
     printf("->%s(%d): Added key %s ;",__func__,__LINE__, wkey);
@@ -366,7 +367,8 @@ void add_CMDResponseSTR(const char *cmd, char **Vls ) {
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     }
-    s->cmdProcess = dummyProc;
+    // s->cmdProcess = dummyProc;
+	s->func = dummyProc;
     s->reg_value.urv.pStrings = Vls;
     s->RC = ATRC_OK;
     printf("Added key %s na hash table \n",wkey);
@@ -631,7 +633,7 @@ void mdmDspUpdate(mdmDISPLAY *this_mdm)  {
 //    UT_hash_handle hh;         /* makes this structure hashable */
 //} atCmds;
 
-void dummyProc() {
+void dummyProc(char  **cmdIn, atCmds *atCmd , ...) {
     printf("DummyProcess  called\n");
 };
 
@@ -649,24 +651,29 @@ void dummyProc() {
 */
 
 
-void configResponseFunction( char *F_type, u_regv_t *vl ) {
+void configResponseFunction( char *F_type, atCmds *vl ) {
+     
+	/* 
+	 * typedef struct  {
+     * enum E_FUNC_AT ky;
+     * char *nome;
+     * void (*func)(atCmds *atCmd , ...);
+	 */
+    k_trata_dict *p;
         
-    typedef struct  {
-    enum E_FUNC_AT ky;
-    char *nome;
-    void (*func)(atCmds *atCmd , ...);
-            
-    for( *p = K_TRATA_CALL; strcmp(p->nome, F_type ) && p->ky != F_INVALIDA ; ++p ) {} ;
-    vl->cmdProcess =  p->func;
+    for( p = K_TRATA_CALL; 
+		  strcmp(p->nome, F_type ) && p->ky != F_INVALIDA ;
+		  ++p ) {} ;
+    vl->func =  p->func;
 
 }
 
 void configResponseSTR(int K_cfg ){
     // Incluir respostas com funcoes atribuidas.,
     // e resultados que alterem o estado da maquina.
-    //
+    // char *F_type, atCmds *vl 
     
-    configResponseFunction(   )
+    // configResponseFunction( F_type, vl );
         
 };
 
@@ -822,7 +829,7 @@ void configRegisters(int K){
 };
 
 
-void f_trata_OK(atCmds *atCmd , ...){
+void f_trata_OK(char  **cmdIn, atCmds *atCmd , ...){
     // Devolve um OK ., 
     // pode receber um valor no comando 
     // que é a variavel tipo 0 / 1
@@ -836,8 +843,11 @@ void f_trata_OK(atCmds *atCmd , ...){
     //
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
+	
+	
+	
 };
-void f_trata_ATI(atCmds *atCmd , ...){
+void f_trata_ATI(char  **cmdIn, atCmds *atCmd , ...){
     // Devolve as strings de identificacao., 
     // de acordo com  o padrao HAEYES de 
     // a
@@ -849,7 +859,7 @@ void f_trata_ATI(atCmds *atCmd , ...){
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
 };
-void f_trata_ATD(atCmds *atCmd , ...){
+void f_trata_ATD(char  **cmdIn, atCmds *atCmd , ...){
     //
     //  ocorre em um SHM IPC comum, 
     //  que tem a sinalizacao entre processos distintos., 
@@ -874,18 +884,18 @@ void f_trata_ATD(atCmds *atCmd , ...){
     //      **** TODO ****  --?? por IOCTL ??? (quem sabe)
     
 };
-void f_trata_ATA(atCmds *atCmd , ...){
+void f_trata_ATA(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ATO(atCmds *atCmd , ...){
+void f_trata_ATO(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ATH(atCmds *atCmd , ...){
+void f_trata_ATH(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ATS(atCmds *atCmd , ...){
+void f_trata_ATS(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ATE(atCmds *atCmd , ...){
+void f_trata_ATE(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ATZ(atCmds *atCmd , ...){
+void f_trata_ATZ(char  **cmdIn, atCmds *atCmd , ...){
 };
-void f_trata_ABORT(atCmds *atCmd , ...){
+void f_trata_ABORT(char  **cmdIn, atCmds *atCmd , ...){
 };
 
