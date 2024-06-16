@@ -7,17 +7,30 @@ LDIR =../lib
 
 LIBS=-lm
 
-DEPS = uthash.h jsmn.h 
+DEPS = uthash jsmn 
 
 OBJ = jogger.o
 
-%.o: %.c $(DEPS)
+
+
+jsmn:
+	@if [ ! -d $@ ]; then git clone https://github.com/zserge/jsmn.git  $@; fi
+	# $(TARGET_REPO) $@; fi
+	# git clone https://github.com/zserge/jsmn.git
+
+uthash:
+	@if [ ! -d $@ ]; then git clone https://github.com/troydhanson/uthash.git $@; fi
+	# $(TARGET_REPO) $@; fi
+	# git clone https://github.com/troydhanson/uthash.git
+
+
+%.o: %.c  $(DEPS)
 	$(info $$OBJ = $(OBJ))
 	$(info $$IDIR = $(IDIR))
 	$(info $$DEPS = $(DEPS))
 	$(CC) -g -c -o $@ $< $(CFLAGS)
 
-jogger: $(OBJ)
+jogger: $(OBJ) 
 	$(info $$OBJ = $(OBJ))
 	$(info $$IDIR = $(IDIR))
 	$(info $$DEPS = $(DEPS))
