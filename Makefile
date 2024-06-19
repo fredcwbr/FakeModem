@@ -31,13 +31,19 @@ uthash:
 	$(CC) -g -c -o $@ $< $(CFLAGS)
 
 jogger: $(OBJ) 
-	$(info $$OBJ = $(OBJ))
-	$(info $$IDIR = $(IDIR))
-	$(info $$DEPS = $(DEPS))
 	$(CC) -g -o $@ $^ $(CFLAGS) $(LIBS)
+
+
+joggerdbg:
+	gcc -E -I../src jogger.c >/tmp/a.c
+	egrep -v '^#' /tmp/a.c > /tmp/b.c
+	indent /tmp/b.c
+	$(CC) -g -o /tmp/b $(CFLAGS) /tmp/b.c  $(LIBS)
+
 
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~  
+	rm -rf sjsmn uthash
 

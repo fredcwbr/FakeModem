@@ -6,6 +6,7 @@
                         ] , "F_ATI" ],
                 "DT" : [["CONNECT"] , "F_ATD" ] ,
                 "DP" : [["CONNECT"] , "F_ATD" ],
+                "DP" : [["CONNECT"] , "F_ATD" ],
                 "A" : [["CONNECT"] , "F_ATA" ],
                 "O0" : [["ERROR"] , "F_ATO" ],
                 "O1" : [[] , "F_ATO" ], 

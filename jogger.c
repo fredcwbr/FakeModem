@@ -74,6 +74,21 @@ void kyCfg();
  *   7 - Query/Variable Flag (?|=)
  *   8 - Register Set Value
 */
+
+//  2 (baseCommand) , 5 (flags) ,  7 (action) , 8 (value)
+typedef struct s_CMD_In {
+    struct s_CMD_In *p_next;
+    char *cmdBase;
+    char *cmdFlag;
+    char *cmdAction; //  ? or =
+    char *cmdValue;
+    char bf;
+} s_CMD_IN_t;
+
+s_CMD_IN_t *regexProc(char *p0);
+
+
+
 #define tofind    " ?((([&\\+%]?) ?([a-zA-Z]+))([0-9|;]*|[;]?)(([=?])?([0-9]*))?)"
 
 // Returns always 8 tokens... 
@@ -135,7 +150,7 @@ struct atCmds {
     char CMDpfx[SZ_ATCMD_HASHKEY];            /* key */
                                /* AT commands are prefix+CMD+MOD :: charALT + charCMDCODE + charMODIFIER */
                                /* Ex.:  DT ;; &C ;; %K  */ 
-    void (*func)( char  **cmdIn, atCmds *atCmd , ...);
+    void (*func)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
     enum EcmdRC RC; 
     // void (*cmdProcess)();
     u_regv_t reg_value;        
@@ -146,25 +161,29 @@ struct atCmds {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-void dummyProc(char  **cmdIn, atCmds *atCmd , ...);
+void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
     
 
 // State machine ..
 enum mdmSTATE  {COMMAND,DIALING,TRAINING,RINGING,ONLINE,ERROR};
 enum mdmSTATE modemState;
 
+
+void processInput( s_CMD_IN_t *p_cmd );
+
 // Fake Modem Function IMPLEMENTATIONS
 //
-void f_trata_OK(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATI(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATD(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATA(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATO(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATH(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATS(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATE(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ATZ(char  **cmdIn, atCmds *atCmd , ...);
-void f_trata_ABORT(char  **cmdIn, atCmds *atCmd , ...);
+void f_trata_OK(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATI(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATA(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATO(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATH(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATS(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATE(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ATZ(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ERROR(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+void f_trata_ABORT(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
 
 enum E_FUNC_AT { F_CMD_ATI,
                  F_CMD_ATD,
@@ -175,11 +194,13 @@ enum E_FUNC_AT { F_CMD_ATI,
                  F_CMD_ATE,
                  F_CMD_ATZ,
                  F_CMD_OK,
-                 F_INVALIDA = -1}; // End of list Marker...
+                 F_CMD_ERROR,
+                 F_INVALIDA,
+                 F_NULL = -1}; // End of list Marker...
 typedef struct  {
     enum E_FUNC_AT ky;
     char *nome;
-    void (*func)(char  **cmdIn, atCmds *atCmd , ...);
+    void (*func)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
     } k_trata_dict;
 
 //  <KTYPE of processing> <KCONFIGKEY> <function implementation>
@@ -196,7 +217,9 @@ k_trata_dict K_TRATA_CALL[] = {
         { F_CMD_ATE, "F_ATE",  f_trata_ATE },
         { F_CMD_ATZ, "F_ATZ",  f_trata_ATZ },
         { F_CMD_ATZ, "F_OK",   f_trata_OK },
-        { F_INVALIDA, "F_+++", f_trata_ABORT }  // Keep at end of list
+        { F_CMD_ERROR, "F_ERROR",   f_trata_ERROR },
+        { F_INVALIDA, "F_+++", f_trata_ABORT },  // Keep at end of list
+        { F_NULL , "", f_trata_ERROR }
     }  ;
  
 
@@ -258,7 +281,7 @@ const char *filename = "x"; // /etc/rc.conf";
 char s_atResponsesSTR[] = "atResponsesSTR";
 char s_atResponsesOK[] = "atResponsesOK";
 char s_atDFLReg[] = "atDFLReg";
-void configResponseSTR();
+void configResponseSTR(int K_cfg );
 void configResponseOK(int K);
 void configRegisters(int K);
 
@@ -271,15 +294,17 @@ struct atCmds *cmdsTBL = NULL;    /* important! initialize to NULL */
 
 
 void pprintAtCmds( const char* f, int ln , atCmds *p ){
+    char *w;
+    char *px;
 
-    printf("->%s(%d): vindo de :: F(%s).L(%d) :",__func__,__LINE__,f,ln);
+    printf("->%s(%d): vindo de :: F(%s).L(%d) :\n",__func__,__LINE__,f,ln);
+    printf("Comando : %s\n",p->CMDpfx);
     switch( p->reg_value.tpx) {        
         case REGV_CHAR: 
-            char *w;
-            char *px;
+
             w = malloc(1024);  
             px = w;
-            strcpy(px,"CHAR:: '");
+            strcpy(px,"\tCHAR:: '");
             px = strlen(w) + w +1;
             for( int I ; I < SZ_REGVCHAR ; ++I ) {
                 if( isprint(p->reg_value.urv.ch[I] ) )
@@ -298,11 +323,11 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
             break;
 
         case REGV_INT:
-            printf("INT:: %ld\n", p->reg_value.urv.int_v);
+            printf("\tINT:: %ld\n", p->reg_value.urv.int_v);
             break;
                    
         case REGV_STRARR:
-            printf("STRARR:: at %p\n", p->reg_value.urv.pStrings );
+            printf("\tSTRARR:: at %p\n", p->reg_value.urv.pStrings );
             for( char **px = p->reg_value.urv.pStrings ; *px ; px++ ) {
                 putchar('\t');
                 puts(*px);
@@ -312,7 +337,13 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
             
         // case REGV_INVALID:
         default:
-            printf("INVALID VALUE\n");
+            printf("\tREG:: INVALID VALUE\n");
+    }
+    for( k_trata_dict *p_kc = &K_TRATA_CALL[0]; p_kc->ky != F_NULL ; ++p_kc){
+        // lista a funcao que trata esse comando
+        if( p_kc->func == p->func ) {
+            printf("comando tratado por %s \n",p_kc->nome );            
+        }
     }
     
 }
@@ -325,15 +356,18 @@ void add_CMDOK(const char *cmd) {
     strncpy( wkey, cmd, SZ_ATCMD_HASHKEY );
     HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
     if (s == NULL) {
+        printf("Added new key %s na hash table \n",wkey);
         s = malloc(sizeof *s);
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
+    } else {
+        printf("Key FOUND %s na hash table \n",wkey);
     }
     // s->cmdProcess = dummyProc;
     s->reg_value.urv.int_v = -1;
     s->RC = ATRC_OK;
     s->func =  f_trata_OK;
-    printf("Added key %s na hash table \n",wkey);
+    
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -384,8 +418,20 @@ void delete_CMD(atCmds *s_cmd) {
 }
 
 
-int regexProc(char *p0) {
+
+s_CMD_IN_t *regexProc(char *p0) {
+    s_CMD_IN_t *p_next;
+    s_CMD_IN_t *p_ini = NULL;
+    
     int retval = 0;
+    s_CMD_IN_t *pwk;
+    char *px;
+    int  tsz;
+    
+    //  Interested only on tokens
+    //  2 (baseCommand) , 5 (flags) ,  7 (action) , 8 (value)
+    //  always copy up to bufer., 
+    //
     
     while( ((retval = regexec(&re, p0, RMSZ, rm, 0)) == 0) ) 
     {
@@ -393,21 +439,64 @@ int regexProc(char *p0) {
         // Complete match
         printf("Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
         // Match captured in (...) - the \( and \) match literal parenthesis
+        // espaco o bastante para copiar cada coisa no seu lugar
+        pwk = (s_CMD_IN_t *)malloc(sizeof(s_CMD_IN_t) + (int)(rm[0].rm_eo - rm[0].rm_so) + 9 );
+        memset(pwk,0,sizeof(s_CMD_IN_t));
+        px = &pwk->bf;
+        pwk->p_next = NULL;
+        if( p_ini == NULL ) {
+            p_ini=pwk; // inicio da lista.
+            p_next = pwk;
+        } else {
+            p_next->p_next = pwk;
+            p_next = pwk;                    
+        }
+                
         for( int i = 1; i < RMSZ; ++i ){
             if( rm[i].rm_so == -1 ) {
                 printf("ndx %d == -1\n",i);
             } else {
-                printf("\tText[%d]: <<%.*s>>\n", i, (int)(rm[i].rm_eo - rm[i].rm_so), p0 + rm[i].rm_so);
+                tsz = rm[i].rm_eo - rm[i].rm_so;
+                switch(i){
+                    case 2:
+                        pwk->cmdBase = px;
+                        break;
+                    case 5:
+                        pwk->cmdFlag = px;
+                        break;
+                    case 7:
+                        pwk->cmdAction = px;
+                        break;
+                    case 8:
+                        pwk->cmdValue = px;
+                        break;
+                }
+                switch(i){
+                    case 2:
+                    case 5:
+                    case 7:
+                    case 8:
+                        px = stpncpy(px, p0 + rm[i].rm_so, tsz);
+                        *px++ = 0;
+                }
+                printf("\tText[%d]: <<%.*s>>\n", i, tsz, p0 + rm[i].rm_so);
             }
         }
         p0 = p0 + (int)(rm[0].rm_eo - rm[0].rm_so);
     } 
     regerror( retval , &re , errBuff, ERRBFSZ );
     printf( "Erro no regex %s\n", errBuff );
-
+    return p_ini;
 }
 
-
+char *pNullDeref( char *p ) {
+    if( p ) {
+        return p;
+    }
+    else {
+        return "NULO";
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -421,10 +510,14 @@ int main(int argc, char **argv)
     int r;
     int src;
     struct stat finfo;
+    s_CMD_IN_t *pxR ;
     
     modemFileName = "";
  
-    mmMDMDisplay = open("mmMDMx.dsply", O_RDWR|O_CREAT );
+    mmMDMDisplay = open("mmMDMx.dsply",
+                            O_RDWR|O_CREAT ,
+                            S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP );
+    lseek(mmMDMDisplay, sizeof(mdmDISPLAY)*8,SEEK_SET);
     mdms = (mdmDISPLAY *)mmap(
             NULL,
             sizeof(mdmDISPLAY)*maxndxmdm,
@@ -495,8 +588,22 @@ int main(int argc, char **argv)
             // Termos caracteres nessa linha... .
             int ndx2=strcspn( &line[ndx], "\n");
             line[ndx+ndx2] = 0;
-            regexProc( &line[ndx] );
-            // Processar o comando ... 
+            for( pxR = regexProc( &line[ndx] ); pxR ; )  {
+                // Processar o comando ... 
+                printf("Comando interpretado : %s : %s :: %s ; %s\n",
+                    pxR->cmdBase,
+                    pNullDeref( pxR->cmdFlag ) ,
+                    pNullDeref( pxR->cmdAction ),
+                    pNullDeref( pxR->cmdValue )
+                    );
+                    
+                processInput( pxR );
+     
+                s_CMD_IN_t *pxW = pxR;
+                pxR=pxR->p_next;
+                free(pxW);
+            };           
+            
             //
             ndx += ndx2+1;
         }
@@ -633,7 +740,7 @@ void mdmDspUpdate(mdmDISPLAY *this_mdm)  {
 //    UT_hash_handle hh;         /* makes this structure hashable */
 //} atCmds;
 
-void dummyProc(char  **cmdIn, atCmds *atCmd , ...) {
+void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...) {
     printf("DummyProcess  called\n");
 };
 
@@ -829,7 +936,27 @@ void configRegisters(int K){
 };
 
 
-void f_trata_OK(char  **cmdIn, atCmds *atCmd , ...){
+void processInput( s_CMD_IN_t *p_cmd ){
+    // lookup command and pass input to treat
+    //
+    char   wkey[SZ_ATCMD_HASHKEY];
+    struct atCmds *s;
+    
+    printf("%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase );
+    strncpy( wkey, p_cmd->cmdBase, SZ_ATCMD_HASHKEY );
+    HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
+    
+    if( s  == NULL ) {
+        f_trata_ERROR( p_cmd, NULL );
+    } else  {
+        printf("%s ; %d -- %s -> %p\n",__func__, __LINE__, s->CMDpfx ,s->func );
+        s->func(p_cmd, s );
+    }
+    
+};
+
+
+void f_trata_OK(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // Devolve um OK ., 
     // pode receber um valor no comando 
     // que é a variavel tipo 0 / 1
@@ -844,10 +971,17 @@ void f_trata_OK(char  **cmdIn, atCmds *atCmd , ...){
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
 	
-	
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    
+	if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rOK\r\n");
+    }
 	
 };
-void f_trata_ATI(char  **cmdIn, atCmds *atCmd , ...){
+
+void f_trata_ATI(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // Devolve as strings de identificacao., 
     // de acordo com  o padrao HAEYES de 
     // a
@@ -858,8 +992,10 @@ void f_trata_ATI(char  **cmdIn, atCmds *atCmd , ...){
     // e servem para auto deteccao/identificacao  do modem., 
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
+     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     
 };
-void f_trata_ATD(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     //
     //  ocorre em um SHM IPC comum, 
     //  que tem a sinalizacao entre processos distintos., 
@@ -882,20 +1018,33 @@ void f_trata_ATD(char  **cmdIn, atCmds *atCmd , ...){
     //  Cada contra-parte é um vMdm<NNN> onde NNN é o numero de destino ., 
     //  o numero de vMDMs, é instanciado pelo arquivo de configuracao 
     //      **** TODO ****  --?? por IOCTL ??? (quem sabe)
+     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     
 };
-void f_trata_ATA(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATA(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ATO(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATO(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ATH(char  **cmdIn, atCmds *atCmd , ...){
+ 
+void f_trata_ATH(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ATS(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATS(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ATE(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATE(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ATZ(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ATZ(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
-void f_trata_ABORT(char  **cmdIn, atCmds *atCmd , ...){
+void f_trata_ERROR(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    ;
+}
+void f_trata_ABORT(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
 
