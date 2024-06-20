@@ -80,6 +80,7 @@ char **strArray(  int K );
 //  2 (baseCommand) , 5 (flags) ,  7 (action) , 8 (value)
 typedef struct s_CMD_In {
     struct s_CMD_In *p_next;
+    char *cmdFull;
     char *cmdBase;
     char *cmdFlag;
     char *cmdAction; //  ? or =
@@ -411,7 +412,7 @@ void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
 	s->func = func;
     s->reg_value.urv.pStrings = Vls;
     s->RC = ATRC_OK;
-    printf("Added key %s na hash table \n",wkey);
+    printf("Added STR key %s na hash table Vls = %p \n", wkey, Vls );
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -446,7 +447,7 @@ s_CMD_IN_t *regexProc(char *p0) {
         printf("Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
         // Match captured in (...) - the \( and \) match literal parenthesis
         // espaco o bastante para copiar cada coisa no seu lugar
-        pwk = (s_CMD_IN_t *)malloc(sizeof(s_CMD_IN_t) + (int)(rm[0].rm_eo - rm[0].rm_so) + 9 );
+        pwk = (s_CMD_IN_t *)malloc(sizeof(s_CMD_IN_t) + ((int)(rm[0].rm_eo - rm[0].rm_so) *2) + 9 );
         memset(pwk,0,sizeof(s_CMD_IN_t));
         px = &pwk->bf;
         pwk->p_next = NULL;
@@ -464,6 +465,9 @@ s_CMD_IN_t *regexProc(char *p0) {
             } else {
                 tsz = rm[i].rm_eo - rm[i].rm_so;
                 switch(i){
+                    case 1:
+                        pwk->cmdFull = px;
+                        break;
                     case 2:
                         pwk->cmdBase = px;
                         break;
@@ -478,6 +482,7 @@ s_CMD_IN_t *regexProc(char *p0) {
                         break;
                 }
                 switch(i){
+                    case 1:
                     case 2:
                     case 5:
                     case 7:
@@ -557,7 +562,7 @@ int main(int argc, char **argv)
     r = jsmn_parse(&jsmn_config_SRC, bfConfig, strlen(bfConfig), jsmn_configTOKs, CONFIGTOKS); 
     printf("config read %d Tokens\n", r);
     kyCfg();
-    dump(bfConfig, jsmn_configTOKs, jsmn_config_SRC.toknext, 0);
+    // dump(bfConfig, jsmn_configTOKs, jsmn_config_SRC.toknext, 0);
     
     if (argc > 1)
         filename = argv[1];
@@ -868,7 +873,7 @@ char **strArray(  int K ){
     w_sz = (ntok->end - ntok->start) + ntok->size + pdspl;
     pArr = (char**)malloc(w_sz);    // Area interna
     // Copia o buffer para a area interna.
-    wp0 = (char *)(pArr + pdspl);  // start of internal work area
+    wp0 =( (char *)pArr + pdspl);  // start of internal work area
     printf("Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
     for( int J=0 ; J < ntok->size ; ++J ){
         // Para cada string.
@@ -990,9 +995,15 @@ void processInput( s_CMD_IN_t *p_cmd ){
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
     
-    printf("%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase );
-    strncpy( wkey, p_cmd->cmdBase, SZ_ATCMD_HASHKEY );
-    HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
+    HASH_FIND_STR(cmdsTBL,p_cmd->cmdBase, s);  /* id already in the hash? */
+    if( s == NULL ) {
+        // tenta usando o modificador
+        strncpy( wkey, p_cmd->cmdBase ,SZ_ATCMD_HASHKEY );
+        strcat( wkey, p_cmd->cmdFlag );
+        printf("%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase, wkey );
+        // strncpy( wkey, p_cmd->cmdBase, SZ_ATCMD_HASHKEY );
+        HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
+    }
     
     if( s  == NULL ) {
         f_trata_ERROR( p_cmd, NULL );
@@ -1030,6 +1041,7 @@ void f_trata_OK(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
 };
 
 void f_trata_ATI(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
+    char **p;
     // Devolve as strings de identificacao., 
     // de acordo com  o padrao HAEYES de 
     // a
@@ -1041,8 +1053,17 @@ void f_trata_ATI(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
      printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     for( p = atCmd->reg_value.urv.pStrings ; *p ; ++p ) {
+         printf("\r%s\r\n", *p );
+     }
+     if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rOK\r\n");
+     }
      
 };
+
 void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     //
     //  ocorre em um SHM IPC comum, 
@@ -1066,33 +1087,72 @@ void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     //  Cada contra-parte é um vMdm<NNN> onde NNN é o numero de destino ., 
     //  o numero de vMDMs, é instanciado pelo arquivo de configuracao 
     //      **** TODO ****  --?? por IOCTL ??? (quem sabe)
-     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rCONNECT\r\n");
+    }
     
 };
 void f_trata_ATA(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
      printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rCONNECTED\rOK\r\n");
+    }
 };
 void f_trata_ATO(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
      printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rCONNECTED\rOK\r\n");
+    }
 };
  
 void f_trata_ATH(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rOK\r\n");
+    }
 };
 void f_trata_ATS(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
 void f_trata_ATE(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rOK\r\n");
+    }
 };
 void f_trata_ATZ(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rOK\r\n");
+    }
 };
 void f_trata_ERROR(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
-    ;
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rERROR\r\n");
+    };
 }
 void f_trata_ABORT(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    if( cmdIn->p_next == NULL ) {
+        // É o ultimo comando da linha, 
+        // Reorna o OK se chegou aqui., 
+        printf("\rERROR\r\n");
+    };
 };
 
