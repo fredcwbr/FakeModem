@@ -18,6 +18,8 @@ int dump(const char *js, jsmntok_t *t, size_t count, int indent);
 void kyCfg();    
     
 
+char **strArray(  int K );
+
 //  Ref:: https://pokristensson.com/strmap.html
 //  https://troydhanson.github.io/uthash/userguide.html
 #include "uthash/src/uthash.h"
@@ -197,10 +199,13 @@ enum E_FUNC_AT { F_CMD_ATI,
                  F_CMD_ERROR,
                  F_INVALIDA,
                  F_NULL = -1}; // End of list Marker...
+                 
+typedef void (*v_func_t)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...)  ;                 
 typedef struct  {
     enum E_FUNC_AT ky;
     char *nome;
-    void (*func)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+    // void (*func)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+     v_func_t func;
     } k_trata_dict;
 
 //  <KTYPE of processing> <KCONFIGKEY> <function implementation>
@@ -349,6 +354,7 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
 }
 
 
+
 void add_CMDOK(const char *cmd) {
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
@@ -390,7 +396,7 @@ void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
-void add_CMDResponseSTR(const char *cmd, char **Vls ) {
+void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
     
@@ -402,7 +408,7 @@ void add_CMDResponseSTR(const char *cmd, char **Vls ) {
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     }
     // s->cmdProcess = dummyProc;
-	s->func = dummyProc;
+	s->func = func;
     s->reg_value.urv.pStrings = Vls;
     s->RC = ATRC_OK;
     printf("Added key %s na hash table \n",wkey);
@@ -634,6 +640,8 @@ void kyCfg(){
                 configResponseOK(K);
             } else if( strncmp(s_atDFLReg,sstart,strlen(s_atDFLReg) ) == 0 ){
                 configRegisters(K);
+            } else if( strncmp(s_atResponsesSTR ,sstart,strlen(s_atResponsesSTR) ) == 0 ) {
+                configResponseSTR(K);
             }
             printf("->%s(%d)%d :: Sz %d : '%.*s'\n", __func__,__LINE__, K, tokx->size, lenx, sstart  );
             --J;            
@@ -758,7 +766,7 @@ void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...) {
 */
 
 
-void configResponseFunction( char *F_type, atCmds *vl ) {
+v_func_t configResponseFunction( char *F_type, ... ) {
      
 	/* 
 	 * typedef struct  {
@@ -771,16 +779,56 @@ void configResponseFunction( char *F_type, atCmds *vl ) {
     for( p = K_TRATA_CALL; 
 		  strcmp(p->nome, F_type ) && p->ky != F_INVALIDA ;
 		  ++p ) {} ;
-    vl->func =  p->func;
-
+    return p->func;
 }
 
-void configResponseSTR(int K_cfg ){
+void configResponseSTR(int K ){
     // Incluir respostas com funcoes atribuidas.,
     // e resultados que alterem o estado da maquina.
     // char *F_type, atCmds *vl 
     
+    jsmntok_t *tokx,*tokf;
+    int J, M, N, T;
+    char wx[SZ_ATCMD_HASHKEY];
+    char **Vls;
+    v_func_t func;
+    char *F_type;
+    
+    T = (jsmn_configTOKs + K + 1 )->size + 2;
+    printf("configResponseSTR K %d  \n", T );
+
+    M  = K+2;
+    for( J=0; J < T ; ++J ) {
+        tokx = jsmn_configTOKs + M;  
+        strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
+        if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
+            printf("Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+        } else {
+            wx[tokx->end - tokx->start] = 0;
+            
+            Vls = strArray( M+2 );  // primeiro array com os dados de resposta
+            // Segundo elemento é o tipo de funcao que trata o comando
+            N = M+2;
+            jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &N ) ; 
+            
+            tokf = jsmn_configTOKs+N;
+            F_type = malloc( (tokf->end - tokf->start) + 1);
+            memset(F_type,0,(tokf->end - tokf->start) + 1);
+            strncpy( F_type, bfConfig + tokf->start, (tokf->end - tokf->start) );
+            func = configResponseFunction( F_type );
+            
+            add_CMDResponseSTR(wx, func, Vls  );
+            // add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls  );
+            free(F_type);
+        }
+
+        printf("CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
+        ++M;
+        jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ; 
+    }
+
     // configResponseFunction( F_type, vl );
+    
         
 };
 
