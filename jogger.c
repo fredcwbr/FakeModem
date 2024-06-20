@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <stdarg.h>
 
 #define JSMN_PARENT_LINKS 1
 //  https://github.com/zserge/jsmn
@@ -298,13 +299,28 @@ jsmntok_t jsmn_configTOKs[CONFIGTOKS]; /* We expect <<CONFIGTOKS>> JSON tokens *
 
 struct atCmds *cmdsTBL = NULL;    /* important! initialize to NULL */
 
+int debugLVL = 0;
+int printDebugLVL = 99;
+FILE *fdebug;
+
+void debug_printf( int debugLvl, char *format, ...){
+    if( debugLvl > printDebugLVL ){
+        va_list ap;
+        va_start(ap, format);
+        
+        vfprintf( fdebug, format , ap );
+        
+        va_end(ap);
+    }
+}
+
 
 void pprintAtCmds( const char* f, int ln , atCmds *p ){
     char *w;
     char *px;
 
-    printf("->%s(%d): vindo de :: F(%s).L(%d) :\n",__func__,__LINE__,f,ln);
-    printf("Comando : %s\n",p->CMDpfx);
+    debug_printf( debugLVL, "->%s(%d): vindo de :: F(%s).L(%d) :\n",__func__,__LINE__,f,ln);
+    debug_printf( debugLVL, "Comando : %s\n",p->CMDpfx);
     switch( p->reg_value.tpx) {        
         case REGV_CHAR: 
 
@@ -319,21 +335,21 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
                    int x = sprintf(px,"<0x%2.2X>", p->reg_value.urv.ch[I] );
                    px +=x+1; 
                 }
-                // printf("->%s(%d): I=> \n",__func__,__LINE__, I);                
+                // debug_printf( debugLVL, "->%s(%d): I=> \n",__func__,__LINE__, I);                
             }
             *px++ = '\'';
             *px = 0;
-            // printf("->%s(%d):\n",__func__,__LINE__);
+            // debug_printf( debugLVL, "->%s(%d):\n",__func__,__LINE__);
             puts(w);
             free(w);
             break;
 
         case REGV_INT:
-            printf("\tINT:: %ld\n", p->reg_value.urv.int_v);
+            debug_printf( debugLVL, "\tINT:: %ld\n", p->reg_value.urv.int_v);
             break;
                    
         case REGV_STRARR:
-            printf("\tSTRARR:: at %p\n", p->reg_value.urv.pStrings );
+            debug_printf( debugLVL, "\tSTRARR:: at %p\n", p->reg_value.urv.pStrings );
             for( char **px = p->reg_value.urv.pStrings ; *px ; px++ ) {
                 putchar('\t');
                 puts(*px);
@@ -343,12 +359,12 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
             
         // case REGV_INVALID:
         default:
-            printf("\tREG:: INVALID VALUE\n");
+            debug_printf( debugLVL, "\tREG:: INVALID VALUE\n");
     }
     for( k_trata_dict *p_kc = &K_TRATA_CALL[0]; p_kc->ky != F_NULL ; ++p_kc){
         // lista a funcao que trata esse comando
         if( p_kc->func == p->func ) {
-            printf("comando tratado por %s \n",p_kc->nome );            
+            debug_printf( debugLVL, "comando tratado por %s \n",p_kc->nome );            
         }
     }
     
@@ -363,12 +379,12 @@ void add_CMDOK(const char *cmd) {
     strncpy( wkey, cmd, SZ_ATCMD_HASHKEY );
     HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
     if (s == NULL) {
-        printf("Added new key %s na hash table \n",wkey);
+        debug_printf( debugLVL, "Added new key %s na hash table \n",wkey);
         s = malloc(sizeof *s);
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     } else {
-        printf("Key FOUND %s na hash table \n",wkey);
+        debug_printf( debugLVL, "Key FOUND %s na hash table \n",wkey);
     }
     // s->cmdProcess = dummyProc;
     s->reg_value.urv.int_v = -1;
@@ -393,7 +409,7 @@ void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
 	s->func = dummyProc;
     s->reg_value = Vl ;
     s->RC = ATRC_OK;
-    printf("->%s(%d): Added key %s ;",__func__,__LINE__, wkey);
+    debug_printf( debugLVL, "->%s(%d): Added key %s ;",__func__,__LINE__, wkey);
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -412,7 +428,7 @@ void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
 	s->func = func;
     s->reg_value.urv.pStrings = Vls;
     s->RC = ATRC_OK;
-    printf("Added STR key %s na hash table Vls = %p \n", wkey, Vls );
+    debug_printf( debugLVL, "Added STR key %s na hash table Vls = %p \n", wkey, Vls );
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -442,9 +458,9 @@ s_CMD_IN_t *regexProc(char *p0) {
     
     while( ((retval = regexec(&re, p0, RMSZ, rm, 0)) == 0) ) 
     {
-        printf("<<%s>>\n", p0 );
+        debug_printf( debugLVL, "<<%s>>\n", p0 );
         // Complete match
-        printf("Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
+        debug_printf( debugLVL, "Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
         // Match captured in (...) - the \( and \) match literal parenthesis
         // espaco o bastante para copiar cada coisa no seu lugar
         pwk = (s_CMD_IN_t *)malloc(sizeof(s_CMD_IN_t) + ((int)(rm[0].rm_eo - rm[0].rm_so) *2) + 9 );
@@ -461,7 +477,7 @@ s_CMD_IN_t *regexProc(char *p0) {
                 
         for( int i = 1; i < RMSZ; ++i ){
             if( rm[i].rm_so == -1 ) {
-                printf("ndx %d == -1\n",i);
+                debug_printf( debugLVL, "ndx %d == -1\n",i);
             } else {
                 tsz = rm[i].rm_eo - rm[i].rm_so;
                 switch(i){
@@ -490,13 +506,13 @@ s_CMD_IN_t *regexProc(char *p0) {
                         px = stpncpy(px, p0 + rm[i].rm_so, tsz);
                         *px++ = 0;
                 }
-                printf("\tText[%d]: <<%.*s>>\n", i, tsz, p0 + rm[i].rm_so);
+                debug_printf( debugLVL, "\tText[%d]: <<%.*s>>\n", i, tsz, p0 + rm[i].rm_so);
             }
         }
         p0 = p0 + (int)(rm[0].rm_eo - rm[0].rm_so);
     } 
     regerror( retval , &re , errBuff, ERRBFSZ );
-    printf( "Erro no regex %s\n", errBuff );
+    debug_printf( debugLVL,  "Erro no regex %s\n", errBuff );
     return p_ini;
 }
 
@@ -522,7 +538,20 @@ int main(int argc, char **argv)
     int src;
     struct stat finfo;
     s_CMD_IN_t *pxR ;
+    char c;
     
+    int arg_ndx;
+    
+    while((c=getopt( argc,argv,"d:")) != -1)
+        switch(c) {
+            case 'd':
+                printDebugLVL = atoi(optarg);
+                break;
+            default:
+            abort();
+        }
+   
+    fdebug = stderr;
     modemFileName = "";
  
     mmMDMDisplay = open("mmMDMx.dsply",
@@ -537,7 +566,7 @@ int main(int argc, char **argv)
             mmMDMDisplay,
             0);
     if( mdms == (void *)-1 ){
-        printf("Erro no mm %s\n",strerror(errno) );
+        debug_printf( debugLVL, "Erro no mm %s\n",strerror(errno) );
     }
     ftruncate(mmMDMDisplay,sizeof(mdmDISPLAY)*maxndxmdm);
     close(mmMDMDisplay);
@@ -560,7 +589,7 @@ int main(int argc, char **argv)
     jsmn_init(&jsmn_config_SRC);
     // "src" is the char array holding the json content
     r = jsmn_parse(&jsmn_config_SRC, bfConfig, strlen(bfConfig), jsmn_configTOKs, CONFIGTOKS); 
-    printf("config read %d Tokens\n", r);
+    debug_printf( debugLVL, "config read %d Tokens\n", r);
     kyCfg();
     // dump(bfConfig, jsmn_configTOKs, jsmn_config_SRC.toknext, 0);
     
@@ -572,8 +601,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to compile regex '%s'\n", tofind);
         return EXIT_FAILURE;
     }
-    printf("Regex: %s\n", tofind);
-    printf("Number of captured expressions: %zu\n", re.re_nsub);
+    debug_printf( debugLVL, "Regex: %s\n", tofind);
+    debug_printf( debugLVL, "Number of captured expressions: %zu\n", re.re_nsub);
 
     fp = fopen(filename, "r");
     if (fp == 0)
@@ -581,7 +610,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to open file %s (%d: %s)\n", filename, errno, strerror(errno));
         return EXIT_FAILURE;
     }
-    printf("Arqin %s\n" , filename);
+    debug_printf( debugLVL, "Arqin %s\n" , filename);
 
     while ((fgets(line, 1024, fp)) != NULL)
     {
@@ -601,7 +630,7 @@ int main(int argc, char **argv)
             line[ndx+ndx2] = 0;
             for( pxR = regexProc( &line[ndx] ); pxR ; )  {
                 // Processar o comando ... 
-                printf("Comando interpretado : %s : %s :: %s ; %s\n",
+                debug_printf( debugLVL, "Comando interpretado : %s : %s :: %s ; %s\n",
                     pxR->cmdBase,
                     pNullDeref( pxR->cmdFlag ) ,
                     pNullDeref( pxR->cmdAction ),
@@ -631,7 +660,7 @@ void kyCfg(){
     
     t = jsmn_configTOKs;
     J = t->size;
-    printf("Raiz %d\n" , t->size );
+    debug_printf( debugLVL, "Raiz %d\n" , t->size );
     do {        
         tokx = jsmn_configTOKs + K;
         if( tokx->type == JSMN_PRIMITIVE || tokx->type == JSMN_STRING ) {
@@ -648,7 +677,7 @@ void kyCfg(){
             } else if( strncmp(s_atResponsesSTR ,sstart,strlen(s_atResponsesSTR) ) == 0 ) {
                 configResponseSTR(K);
             }
-            printf("->%s(%d)%d :: Sz %d : '%.*s'\n", __func__,__LINE__, K, tokx->size, lenx, sstart  );
+            debug_printf( debugLVL, "->%s(%d)%d :: Sz %d : '%.*s'\n", __func__,__LINE__, K, tokx->size, lenx, sstart  );
             --J;            
         }
         jsmn_nested_skip(jsmn_configTOKs,jsmn_config_SRC.toknext,&K);
@@ -672,10 +701,10 @@ jsmntok_t *skip_token(jsmntok_t *token)
 void
 jsmn_nested_skip(const jsmntok_t* tok, int num_tokens, int* i)
 {
-    printf("\n%s(%d) Iniciando: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, tok[*i].end, tok[*i].start );
+    debug_printf( debugLVL, "\n%s(%d) Iniciando: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, tok[*i].end, tok[*i].start );
     
     for (int char_end = tok[*i].end; *i < num_tokens && tok[*i].start < char_end; (*i)++) {
-       // printf("%s(%d) Loop: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, char_end, tok[*i].start );
+       // debug_printf( debugLVL, "%s(%d) Loop: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, char_end, tok[*i].start );
     }  // pass
 }
 
@@ -686,37 +715,37 @@ int dump(const char *js, jsmntok_t *t, size_t count, int indent) {
     return 0;
   }
   if (t->type == JSMN_PRIMITIVE) {
-    printf("%.*s", t->end - t->start, js + t->start);
+    debug_printf( debugLVL, "%.*s", t->end - t->start, js + t->start);
     return 1;
   } else if (t->type == JSMN_STRING) {
-    printf("'%.*s'", t->end - t->start, js + t->start);
+    debug_printf( debugLVL, "'%.*s'", t->end - t->start, js + t->start);
     return 1;
   } else if (t->type == JSMN_OBJECT) {
-    printf("Object SZ %d\n",t->size);
+    debug_printf( debugLVL, "Object SZ %d\n",t->size);
     j = 0;
     for (i = 0; i < t->size; i++) {
       for (k = 0; k < indent; k++) {
-        printf("  ");
+        debug_printf( debugLVL, "  ");
       }
       key = t + 1 + j;
       j += dump(js, key, count - j, indent + 1);
       if (key->size > 0) {
-        printf(": ");
+        debug_printf( debugLVL, ": ");
         j += dump(js, t + 1 + j, count - j, indent + 1);
       }
-      printf("\n");
+      debug_printf( debugLVL, "\n");
     }
     return j + 1;
   } else if (t->type == JSMN_ARRAY) {
     j = 0;
-    printf("Array SZ %d\n",t->size);
+    debug_printf( debugLVL, "Array SZ %d\n",t->size);
     for (i = 0; i < t->size; i++) {
       for (k = 0; k < indent - 1; k++) {
-        printf("  ");
+        debug_printf( debugLVL, "  ");
       }
-      printf("   - ");
+      debug_printf( debugLVL, "   - ");
       j += dump(js, t + 1 + j, count - j, indent + 1);
-      printf("\n");
+      debug_printf( debugLVL, "\n");
     }
     return j + 1;
   }
@@ -754,7 +783,7 @@ void mdmDspUpdate(mdmDISPLAY *this_mdm)  {
 //} atCmds;
 
 void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...) {
-    printf("DummyProcess  called\n");
+    debug_printf( debugLVL, "DummyProcess  called\n");
 };
 
 /*
@@ -800,14 +829,14 @@ void configResponseSTR(int K ){
     char *F_type;
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    printf("configResponseSTR K %d  \n", T );
+    debug_printf( debugLVL, "configResponseSTR K %d  \n", T );
 
     M  = K+2;
     for( J=0; J < T ; ++J ) {
         tokx = jsmn_configTOKs + M;  
         strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            printf("Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            debug_printf( debugLVL, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             wx[tokx->end - tokx->start] = 0;
             
@@ -827,7 +856,7 @@ void configResponseSTR(int K ){
             free(F_type);
         }
 
-        printf("CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
+        debug_printf( debugLVL, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
         ++M;
         jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ; 
     }
@@ -843,18 +872,18 @@ void configResponseOK(int K){
     char wx[SZ_ATCMD_HASHKEY];
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    printf("ConfigResponseOK K %d  \n", T );
+    debug_printf( debugLVL, "ConfigResponseOK K %d  \n", T );
 
     for( J=0; J < T ; ++J ) {
         tokx = jsmn_configTOKs + K + J;  
         strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            printf("Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            debug_printf( debugLVL, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             wx[tokx->end - tokx->start] = 0;
             add_CMDOK( wx );
         }
-        printf("CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
+        debug_printf( debugLVL, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
     }
 
 };
@@ -874,7 +903,7 @@ char **strArray(  int K ){
     pArr = (char**)malloc(w_sz);    // Area interna
     // Copia o buffer para a area interna.
     wp0 =( (char *)pArr + pdspl);  // start of internal work area
-    printf("Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
+    debug_printf( debugLVL, "Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
     for( int J=0 ; J < ntok->size ; ++J ){
         // Para cada string.
         pArr[J] = wp0;
@@ -882,7 +911,7 @@ char **strArray(  int K ){
         int isz = itok->end - itok->start ;
         memcpy( wp0 , bfConfig + itok->start, isz ); // Buffer copiado., 
         *(wp0+isz)=0;
-        printf("Copiado %s em %p\n",wp0,wp0);        
+        debug_printf( debugLVL, "Copiado %s em %p\n",wp0,wp0);        
         wp0+=isz+1;        
     } 
     pArr[ntok->size] = NULL;
@@ -912,7 +941,7 @@ u_regv_t cvtVl( int K) {
         vl.tpx = REGV_STRARR;
         
         int sz = ntok->end - ntok->start;
-        printf("JSMN_ARRAY %d,%d:%d em %p => %.*s \n",
+        debug_printf( debugLVL, "JSMN_ARRAY %d,%d:%d em %p => %.*s \n",
                             ntok->start ,
                             ntok->end, 
                             sz, vl.urv.pStrings , 
@@ -928,13 +957,13 @@ u_regv_t cvtVl( int K) {
 
         vl.urv.int_v = strtol( tok , &p, 0 );
         vl.tpx = REGV_INT;
-        printf("->%s(%d) cvtVL strtol --> %ld ; errno = %d ; %s\n", __func__, __LINE__, vl.urv.int_v , errno, tok , (p == tok?"True":"False") );
+        debug_printf( debugLVL, "->%s(%d) cvtVL strtol --> %ld ; errno = %d ; %s\n", __func__, __LINE__, vl.urv.int_v , errno, tok , (p == tok?"True":"False") );
         if( vl.urv.int_v == 0 && p == tok ) {
           // Verify .  if array of tokens,   
           // or string of chars., 
           strncpy( vl.urv.ch , tok , (32>SZ_VLCMDUNION? SZ_VLCMDUNION : 32 ) );
           vl.tpx = REGV_CHAR;
-          printf("->%s(%d)  cvtVL to %%%ds ..-->>> %.*s\n",__func__, __LINE__,  SZ_VLCMDUNION, SZ_VLCMDUNION, vl.urv.ch );
+          debug_printf( debugLVL, "->%s(%d)  cvtVL to %%%ds ..-->>> %.*s\n",__func__, __LINE__,  SZ_VLCMDUNION, SZ_VLCMDUNION, vl.urv.ch );
         }
     }  
    
@@ -949,7 +978,7 @@ void configRegisters(int K){
 
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    printf("configRegisters K %d  \n", T );
+    debug_printf( debugLVL, "configRegisters K %d  \n", T );
 
     N = K + 2;
     for( J=0; J < T ; ++J ) {
@@ -961,10 +990,10 @@ void configRegisters(int K){
         strncpy(wx0, bfConfig + vltok->start, 32 );
         wx0[vltok->end - vltok->start] = 0;
         
-        printf("->%s(%d) CFGTok : '%s[%d;%d]' :: [N=%d] J=%d :: Sz %d ;; vl=>%s <<\n", __func__,__LINE__,wx,tokx->start, tokx->end, N, J,  strlen(wx) ,  wx0  );
+        debug_printf( debugLVL, "->%s(%d) CFGTok : '%s[%d;%d]' :: [N=%d] J=%d :: Sz %d ;; vl=>%s <<\n", __func__,__LINE__,wx,tokx->start, tokx->end, N, J,  strlen(wx) ,  wx0  );
         
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            printf("->%s(%d) Erro no ATCMD_OK  HashKey %d > %d\n",  __func__,__LINE__, tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            debug_printf( debugLVL, "->%s(%d) Erro no ATCMD_OK  HashKey %d > %d\n",  __func__,__LINE__, tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             // convert whatever to Vl .,
             //  
@@ -975,15 +1004,15 @@ void configRegisters(int K){
             add_CMDRegister( wx, cvtVl( N+1 ) );
         }
         int M = N+1;
-        printf( "->%s(%d) K %d: T %d; Sz %d -->> M, N before %d ; %d  >>>  ",  __func__,__LINE__, K, T, vltok->size, M, N);
+        debug_printf( debugLVL,  "->%s(%d) K %d: T %d; Sz %d -->> M, N before %d ; %d  >>>  ",  __func__,__LINE__, K, T, vltok->size, M, N);
         if( vltok->size > 0 ) {   
-           printf("   vltokSZ .. %d ,  ", vltok->size );
+           debug_printf( debugLVL, "   vltokSZ .. %d ,  ", vltok->size );
            jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ;  
            N=M;
         } else {
             N+=2;
         }
-        printf( "M, N after %d ; %d \n", M, N );
+        debug_printf( debugLVL,  "M, N after %d ; %d \n", M, N );
     }
 
 };
@@ -1000,7 +1029,7 @@ void processInput( s_CMD_IN_t *p_cmd ){
         // tenta usando o modificador
         strncpy( wkey, p_cmd->cmdBase ,SZ_ATCMD_HASHKEY );
         strcat( wkey, p_cmd->cmdFlag );
-        printf("%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase, wkey );
+        debug_printf( debugLVL, "%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase, wkey );
         // strncpy( wkey, p_cmd->cmdBase, SZ_ATCMD_HASHKEY );
         HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
     }
@@ -1008,7 +1037,7 @@ void processInput( s_CMD_IN_t *p_cmd ){
     if( s  == NULL ) {
         f_trata_ERROR( p_cmd, NULL );
     } else  {
-        printf("%s ; %d -- %s -> %p\n",__func__, __LINE__, s->CMDpfx ,s->func );
+        debug_printf( debugLVL, "%s ; %d -- %s -> %p\n",__func__, __LINE__, s->CMDpfx ,s->func );
         s->func(p_cmd, s );
     }
     
@@ -1030,12 +1059,12 @@ void f_trata_OK(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
 	
-    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     
 	if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rOK\r\n");
+        debug_printf( debugLVL, "\rOK\r\n");
     }
 	
 };
@@ -1052,14 +1081,14 @@ void f_trata_ATI(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // e servem para auto deteccao/identificacao  do modem., 
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
-     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      for( p = atCmd->reg_value.urv.pStrings ; *p ; ++p ) {
-         printf("\r%s\r\n", *p );
+         debug_printf( debugLVL, "\r%s\r\n", *p );
      }
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rOK\r\n");
+        debug_printf( debugLVL, "\rOK\r\n");
      }
      
 };
@@ -1087,41 +1116,41 @@ void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     //  Cada contra-parte é um vMdm<NNN> onde NNN é o numero de destino ., 
     //  o numero de vMDMs, é instanciado pelo arquivo de configuracao 
     //      **** TODO ****  --?? por IOCTL ??? (quem sabe)
-    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rCONNECT\r\n");
+        debug_printf( debugLVL, "\rCONNECT\r\n");
     }
     
 };
 void f_trata_ATA(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rCONNECTED\rOK\r\n");
+        debug_printf( debugLVL, "\rCONNECTED\rOK\r\n");
     }
 };
 void f_trata_ATO(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rCONNECTED\rOK\r\n");
+        debug_printf( debugLVL, "\rCONNECTED\rOK\r\n");
     }
 };
  
 void f_trata_ATH(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        printf("\rOK\r\n");
+        debug_printf( debugLVL, "\rOK\r\n");
     }
 };
 void f_trata_ATS(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-    printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    debug_printf( debugLVL, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
 void f_trata_ATE(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     printf("%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
