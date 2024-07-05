@@ -1,16 +1,33 @@
-IDIR =../include:./uthash/src/:./jsmn
-CC=gcc
-CFLAGS=-I$(IDIR)
+VERBOSE = TRUE
 
-ODIR=./
+TARGET = FakeModem 
+
+VPATH=./src 
+IDIR =-I../include -I./uthash/src/ -I./jsmn
+ODIR=./obj
 LDIR =../lib
+
+CC=gcc
+CFLAGS=$(IDIR)
 
 LIBS=-lm
 
 DEPS = uthash jsmn 
 
-OBJ = jogger.o
+OBJS = $(ODIR)/atTreatCmds.o \
+	$(ODIR)/configFromJson.o \
+	$(ODIR)/global.o \
+	$(ODIR)/helper.o \
+	$(ODIR)/jsmninc.o \
+	$(ODIR)/mdmMM.o \
+	$(ODIR)/FakeModem.o \
 
+SOURCES = atTreatCmds.c configFromJson.c FakeModem.c global.c helper.c jsmninc.c mdmMM.c
+HEADERS = atTreatCmds.h configFromJson.h enums.h global.h FakeModem.h helper.h jsmninc.h mdmMM.h
+
+
+FakeModem: $(OBJS)
+	$(CC) -g -o $@ $^ $(CFLAGS) $(LIBS) 
 
 
 jsmn:
@@ -24,26 +41,22 @@ uthash:
 	# git clone https://github.com/troydhanson/uthash.git
 
 
-%.o: %.c  $(DEPS)
-	$(info $$OBJ = $(OBJ))
+$(ODIR)/%.o: %.c  $(DEPS) $(HEADERS)
+	$(info $$OBJ = $(OBJS))
 	$(info $$IDIR = $(IDIR))
+	$(info $$ODIR = $(ODIR))
 	$(info $$DEPS = $(DEPS))
 	$(CC) -g -c -o $@ $< $(CFLAGS)
 
-jogger: $(OBJ) 
-	$(CC) -g -o $@ $^ $(CFLAGS) $(LIBS)
 
 
-joggerdbg:
-	gcc -E -I../src jogger.c >/tmp/a.c
-	egrep -v '^#' /tmp/a.c > /tmp/b.c
-	indent /tmp/b.c
-	$(CC) -g -o /tmp/b $(CFLAGS) /tmp/b.c  $(LIBS)
+.PHONY: all clean dist-clean
 
-
-.PHONY: clean
+all:	$(TARGET)
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~  
-	rm -rf sjsmn uthash
+	rm -f $(ODIR)/* *~ core $(INCDIR)/*~  
 
+dist-clean:
+	rm -f $(ODIR)/* *~ core $(INCDIR)/*~  
+	rm -rf sjsmn uthash
