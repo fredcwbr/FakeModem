@@ -20,7 +20,7 @@ OBJS = $(ODIR)/atTreatCmds.o \
 	$(ODIR)/helper.o \
 	$(ODIR)/jsmninc.o \
 	$(ODIR)/mdmMM.o \
-	$(ODIR)/FakeModem.o \
+	$(ODIR)/FakeModem.o 
 
 SOURCES = atTreatCmds.c configFromJson.c FakeModem.c global.c helper.c jsmninc.c mdmMM.c
 HEADERS = atTreatCmds.h configFromJson.h enums.h global.h FakeModem.h helper.h jsmninc.h mdmMM.h
