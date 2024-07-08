@@ -10,27 +10,45 @@ void kyCfg(){
     
     t = jsmn_configTOKs;
     J = t->size;
-    debug_printf( debugLVL, "Raiz %d\n" , t->size );
+    DEBUG_PRINTF( 20, "Raiz %d\n" , t->size );
     do {        
         tokx = jsmn_configTOKs + K;
-        if( tokx->type == JSMN_PRIMITIVE || tokx->type == JSMN_STRING ) {
+        char *sstart = bfConfig + tokx->start;
+        int lenx = tokx->end - tokx->start;
+        if( tokx->end < tokx->start ) {
+            DEBUG_PRINTF( 25, "%s, %d : End < Start K=%d... End:%d  Start:%d \n" , __func__, __LINE__, K ,tokx->end , tokx->start);
+            K += 1;
+        } else if( tokx->type & (JSMN_PRIMITIVE | JSMN_STRING )  == (JSMN_PRIMITIVE | JSMN_STRING )  ) {
             // 'atResponsesSTR'
             // 'atResponsesOK'
             // 'atDFLReg'
-            char *sstart = bfConfig + tokx->start;
-            int lenx = tokx->end - tokx->start;
             if( strncmp(s_atResponsesOK,sstart,strlen(s_atResponsesOK) ) == 0 ){
                 //
+                DEBUG_PRINTF( 35, "-> ADD OK --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
                 configResponseOK(K);
             } else if( strncmp(s_atDFLReg,sstart,strlen(s_atDFLReg) ) == 0 ){
+                DEBUG_PRINTF( 35, "-> ADD REG --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
                 configRegisters(K);
             } else if( strncmp(s_atResponsesSTR ,sstart,strlen(s_atResponsesSTR) ) == 0 ) {
+                DEBUG_PRINTF( 35, "-> ADD STR --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
                 configResponseSTR(K);
             }
-            debug_printf( 25, "->%s(%d)%d :: Sz %d : '%.*s'\n", __func__,__LINE__, K, tokx->size, lenx, sstart  );
-            --J;            
+            DEBUG_PRINTF( 25, "-> K=%d :: Primitiva ..  Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
+            --J;  
+            ++K;
+        } else if (t->type == JSMN_OBJECT) {
+            DEBUG_PRINTF( 25, "%s, %d : Inside object K=%d... \n" , __func__, __LINE__, K );
+            DEBUG_PRINTF( 25, "-> K=%d  :: Sz %d : '%.*s'\n",  K,  tokx->size, lenx, sstart  );
+            K += 1;
+        } else if( tokx->type == JSMN_ARRAY ) {
+            DEBUG_PRINTF( 25, "%s, %d : Inside ARRAY ... \n" , __func__, __LINE__ );
+            DEBUG_PRINTF( 25, "-> K=%d  :: Sz %d : '%.*s'\n",  K,  tokx->size, lenx, sstart  );
+            K += 2;
+        } else {       
+            DEBUG_PRINTF( 25, "%s, %d : Skipping ... \n" , __func__, __LINE__ );
+            DEBUG_PRINTF( 25, "->%d  :: Sz %d : '%.*s'\n",  K,  tokx->size, lenx, sstart  );
+            jsmn_nested_skip(jsmn_configTOKs,jsmn_config_SRC.toknext,&K);
         }
-        jsmn_nested_skip(jsmn_configTOKs,jsmn_config_SRC.toknext,&K);
     } while( K < jsmn_config_SRC.toknext  && J > 0 );
     
 }
@@ -52,10 +70,10 @@ jsmntok_t *skip_token(jsmntok_t *token)
 // works for any type of token
 void jsmn_nested_skip(const jsmntok_t* tok, int num_tokens, int* i)
 {
-    debug_printf( 20, "\n%s(%d) Iniciando: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, tok[*i].end, tok[*i].start );
+    DEBUG_PRINTF( 20, "\n Iniciando: Limit %d :: [K=%d] -> nextstart %d, end %d\n", num_tokens, *i, tok[*i].end, tok[*i].start );
     
     for (int char_end = tok[*i].end; *i < num_tokens && tok[*i].start < char_end; (*i)++) {
-       // debug_printf( debugLVL, "%s(%d) Loop: Limit %d :: [K=%d] -> nextstart %d, end %d\n",__func__,__LINE__, num_tokens, *i, char_end, tok[*i].start );
+       // DEBUG_PRINTF( debugLVL, " Loop: Limit %d :: [K=%d] -> nextstart %d, end %d\n", num_tokens, *i, char_end, tok[*i].start );
     }  // pass
 }
 
@@ -67,12 +85,12 @@ void add_CMDOK(const char *cmd) {
     strncpy( wkey, cmd, SZ_ATCMD_HASHKEY );
     HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
     if (s == NULL) {
-        debug_printf( 25, "Added new key %s na hash table \n",wkey);
+        DEBUG_PRINTF( 25, "Added new key %s na hash table \n",wkey);
         s = malloc(sizeof *s);
         strncpy( s->CMDpfx, cmd, SZ_ATCMD_HASHKEY );
         HASH_ADD_STR(cmdsTBL, CMDpfx, s);  /* id: name of key field */
     } else {
-        debug_printf( 25, "Key FOUND %s na hash table \n",wkey);
+        DEBUG_PRINTF( 25, "Key FOUND %s na hash table \n",wkey);
     }
     // s->cmdProcess = dummyProc;
     s->reg_value.urv.int_v = -1;
@@ -99,7 +117,7 @@ void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
 	s->func = dummyProc;
     s->reg_value = Vl ;
     s->RC = ATRC_OK;
-    debug_printf( 15, "->%s(%d): Added key %s ;",__func__,__LINE__, wkey);
+    DEBUG_PRINTF( 15, "->: Added key %s ;", wkey);
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -120,7 +138,7 @@ void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
 	s->func = func;
     s->reg_value.urv.pStrings = Vls;
     s->RC = ATRC_OK;
-    debug_printf( 15, "Added STR key %s na hash table Vls = %p \n", wkey, Vls );
+    DEBUG_PRINTF( 15, "Added STR key %s na hash table Vls = %p \n", wkey, Vls );
     pprintAtCmds( __func__, __LINE__ , s );
 }
 
@@ -142,7 +160,7 @@ s_CMD_IN_t *regexProc(char *p0) {
     s_CMD_IN_t *pwk;
     char *px;
     int  tsz;
-    
+    int  flg_OK = 0;
     //  Interested only on tokens
     //  2 (baseCommand) , 5 (flags) ,  7 (action) , 8 (value)
     //  always copy up to bufer., 
@@ -150,9 +168,10 @@ s_CMD_IN_t *regexProc(char *p0) {
     
     while( ((retval = regexec(&re, p0, RMSZ, rm, 0)) == 0) ) 
     {
-        debug_printf( 25, "<<%s>>\n", p0 );
+        flg_OK = 1;
+        DEBUG_PRINTF( 25, "<<%s>>\n", p0 );
         // Complete match
-        debug_printf( 25, "Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
+        DEBUG_PRINTF( 25, "Line: <<%.*s>>\n", (int)(rm[0].rm_eo - rm[0].rm_so), p0 + rm[0].rm_so);
         // Match captured in (...) - the \( and \) match literal parenthesis
         // espaco o bastante para copiar cada coisa no seu lugar
         pwk = (s_CMD_IN_t *)malloc(sizeof(s_CMD_IN_t) + ((int)(rm[0].rm_eo - rm[0].rm_so) *2) + 9 );
@@ -169,7 +188,7 @@ s_CMD_IN_t *regexProc(char *p0) {
                 
         for( int i = 1; i < RMSZ; ++i ){
             if( rm[i].rm_so == -1 ) {
-                debug_printf( debugLVL, "ndx %d == -1\n",i);
+                DEBUG_PRINTF( debugLVL, "ndx %d == -1\n",i);
             } else {
                 tsz = rm[i].rm_eo - rm[i].rm_so;
                 switch(i){
@@ -198,12 +217,14 @@ s_CMD_IN_t *regexProc(char *p0) {
                         px = stpncpy(px, p0 + rm[i].rm_so, tsz);
                         *px++ = 0;
                 }
-                debug_printf( 25, "\tText[%d]: <<%.*s>>\n", i, tsz, p0 + rm[i].rm_so);
+                DEBUG_PRINTF( 25, "\tText[%d]: <<%.*s>>\n", i, tsz, p0 + rm[i].rm_so);
             }
         }
         p0 = p0 + (int)(rm[0].rm_eo - rm[0].rm_so);
     } 
-    regerror( retval , &re , errBuff, ERRBFSZ );
-    debug_printf( 20,  "%s %d  : Erro no regex %s\n", __func__, __LINE__, errBuff );
+    if( !flg_OK ) {
+        regerror( retval , &re , errBuff, ERRBFSZ );
+        DEBUG_PRINTF( 20,  "%s %d  : Erro no regex %s\n", __func__, __LINE__, errBuff );
+    }
     return p_ini;
 }

@@ -19,6 +19,10 @@
 #include "uthash.h"
 #include "enums.h"
 
+// #define PCT_S(c) "%" c
+// #define DEBUG_HDR      PCT_S("s") "->" PCT_S("s") "(" PCT_S("d") ")::  "
+#define DEBUG_HDR      "%s->%s(%d)::  "
+#define DEBUG_PRINTF( LVL , FMT , ... )  debug_printf( LVL, DEBUG_HDR FMT , __FILE__, __func__, __LINE__, ##__VA_ARGS__ )
 
 #define SZ_ATCMD_HASHKEY    5
 #define RMSZ  9

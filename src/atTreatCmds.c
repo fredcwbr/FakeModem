@@ -20,12 +20,12 @@ void f_trata_OK(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...) {
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
 	
-    debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     
 	if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( debugLVL, "\rOK\r\n");
+        DEBUG_PRINTF( debugLVL, "\rOK\r\n");
     }
 	
 };
@@ -43,14 +43,14 @@ void f_trata_ATI(s_CMD_IN_t*cmdIn, atCmds *atCmd , ...){
     // e servem para auto deteccao/identificacao  do modem., 
     // ** do ponto de vista da maquina de estados,. 
     // nao tem alteracao 
-     debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      for( p = atCmd->reg_value.urv.pStrings ; *p ; ++p ) {
-         debug_printf( 25, "\r%s\r\n", *p );
+         DEBUG_PRINTF( 25, "\r%s\r\n", *p );
      }
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( 25, "\rOK\r\n");
+        DEBUG_PRINTF( 25, "\rOK\r\n");
      }
      
 };
@@ -79,47 +79,47 @@ void f_trata_ATD(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
     //  Cada contra-parte é um vMdm<NNN> onde NNN é o numero de destino ., 
     //  o numero de vMDMs, é instanciado pelo arquivo de configuracao 
     //      **** TODO ****  --?? por IOCTL ??? (quem sabe)
-    debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( 25, "\rCONNECT\r\n");
+        DEBUG_PRINTF( 25, "\rCONNECT\r\n");
     }
     
 };
 
 
 void f_trata_ATA(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-     debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( 25, "\rCONNECTED\rOK\r\n");
+        DEBUG_PRINTF( 25, "\rCONNECTED\rOK\r\n");
     }
 };
 
 
 void f_trata_ATO(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-     debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+     DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
      if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( 25, "\rCONNECTED\rOK\r\n");
+        DEBUG_PRINTF( 25, "\rCONNECTED\rOK\r\n");
     }
 };
 
 void f_trata_ATH(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-    debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
     if( cmdIn->p_next == NULL ) {
         // É o ultimo comando da linha, 
         // Reorna o OK se chegou aqui., 
-        debug_printf( 25, "\rOK\r\n");
+        DEBUG_PRINTF( 25, "\rOK\r\n");
     }
 };
 
 
 void f_trata_ATS(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){
-    debug_printf( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
+    DEBUG_PRINTF( 25, "%s ; %d -- Processando ::: %s\n",__func__, __LINE__, cmdIn->cmdBase );
 };
 
 void f_trata_ATE(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...){

@@ -28,7 +28,7 @@ void f_mdmDsplyInit() {
             mmMDMDisplay,
             0);
     if( mdms == (void *)-1 ){
-        debug_printf( debugLVL, "Erro no mm %s\n",strerror(errno) );
+        DEBUG_PRINTF( debugLVL, "Erro no mm %s\n",strerror(errno) );
     }
     ftruncate(mmMDMDisplay,sizeof(mdmDISPLAY)*maxndxmdm);
     close(mmMDMDisplay);

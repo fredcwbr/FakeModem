@@ -38,8 +38,8 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
     char *w;
     char *px;
 
-    debug_printf( 25, "->%s(%d): vindo de :: F(%s).L(%d) :\n",__func__,__LINE__,f,ln);
-    debug_printf( 15, "Comando : %s\n",p->CMDpfx);
+    DEBUG_PRINTF( 25, "->: vindo de :: F(%s).L(%d) :\n",f,ln);
+    DEBUG_PRINTF( 15, "Comando : %s\n",p->CMDpfx);
     switch( p->reg_value.tpx) {        
         case REGV_CHAR: 
 
@@ -54,21 +54,21 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
                    int x = sprintf(px,"<0x%2.2X>", p->reg_value.urv.ch[I] );
                    px +=x+1; 
                 }
-                // debug_printf( debugLVL, "->%s(%d): I=> \n",__func__,__LINE__, I);                
+                // DEBUG_PRINTF( debugLVL, "->: I=> \n", I);                
             }
             *px++ = '\'';
             *px = 0;
-            // debug_printf( debugLVL, "->%s(%d):\n",__func__,__LINE__);
+            // DEBUG_PRINTF( debugLVL, "->:\n",__func__,__LINE__);
             puts(w);
             free(w);
             break;
 
         case REGV_INT:
-            debug_printf( 20, "\tINT:: %ld\n", p->reg_value.urv.int_v);
+            DEBUG_PRINTF( 20, "\tINT:: %ld\n", p->reg_value.urv.int_v);
             break;
                    
         case REGV_STRARR:
-            debug_printf( 20, "\tSTRARR:: at %p\n", p->reg_value.urv.pStrings );
+            DEBUG_PRINTF( 20, "\tSTRARR:: at %p\n", p->reg_value.urv.pStrings );
             for( char **px = p->reg_value.urv.pStrings ; *px ; px++ ) {
                 putchar('\t');
                 puts(*px);
@@ -78,12 +78,12 @@ void pprintAtCmds( const char* f, int ln , atCmds *p ){
             
         // case REGV_INVALID:
         default:
-            debug_printf( 20, "\tREG:: INVALID VALUE\n");
+            DEBUG_PRINTF( 20, "\tREG:: INVALID VALUE\n");
     }
     for( k_trata_dict *p_kc = &K_TRATA_CALL[0]; p_kc->ky != F_NULL ; ++p_kc){
         // lista a funcao que trata esse comando
         if( p_kc->func == p->func ) {
-            debug_printf( 15, "comando tratado por %s \n",p_kc->nome );            
+            DEBUG_PRINTF( 15, "comando tratado por %s \n",p_kc->nome );            
         }
     }
     

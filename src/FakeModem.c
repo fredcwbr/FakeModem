@@ -99,9 +99,9 @@ int main(int argc, char **argv)
     jsmn_init(&jsmn_config_SRC);
     // "src" is the char array holding the json content
     r = jsmn_parse(&jsmn_config_SRC, bfConfig, strlen(bfConfig), jsmn_configTOKs, CONFIGTOKS); 
-    debug_printf( 10, "config read %d Tokens\n", r);
+    DEBUG_PRINTF( 10, "config read %d Tokens\n", r);
     kyCfg();
-    // dump(bfConfig, jsmn_configTOKs, jsmn_config_SRC.toknext, 0);
+    dump(bfConfig, jsmn_configTOKs, jsmn_config_SRC.toknext, 0);
     
     if (optind < argc )
         filename = argv[optind];
@@ -111,8 +111,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to compile regex '%s'\n", tofind);
         return EXIT_FAILURE;
     }
-    debug_printf( 15, "Regex: %s\n", tofind);
-    debug_printf( 15, "Number of captured expressions: %zu\n", re.re_nsub);
+    DEBUG_PRINTF( 15, "Regex: %s\n", tofind);
+    DEBUG_PRINTF( 15, "Number of captured expressions: %zu\n", re.re_nsub);
 
     fp = fopen(filename, "r");
     if (fp == 0)
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to open file %s (%d: %s)\n", filename, errno, strerror(errno));
         return EXIT_FAILURE;
     }
-    debug_printf( 5, "Arqin %s\n" , filename);
+    DEBUG_PRINTF( 5, "Arqin %s\n" , filename);
 
     while ((fgets(line, 1024, fp)) != NULL)
     {
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
             line[ndx+ndx2] = 0;
             for( pxR = regexProc( &line[ndx] ); pxR ; )  {
                 // Processar o comando ... 
-                debug_printf( 15, "%s %d : Comando interpretado : %s : %s :: %s ; %s\n",
+                DEBUG_PRINTF( 15, "%s %d : Comando interpretado : %s : %s :: %s ; %s\n",
                     __func__,
                     __LINE__,
                     pxR->cmdBase,
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 //} atCmds;
 
 void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...) {
-    debug_printf( 10, "DummyProcess  called\n");
+    DEBUG_PRINTF( 10, "DummyProcess  called\n");
 };
 
 /*
@@ -226,14 +226,14 @@ void configResponseSTR(int K ){
     char *F_type;
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    debug_printf( 10, "configResponseSTR K %d  \n", T );
+    DEBUG_PRINTF( 10, "configResponseSTR K %d  \n", T );
 
     M  = K+2;
     for( J=0; J < T ; ++J ) {
         tokx = jsmn_configTOKs + M;  
         strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            debug_printf( 15, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            DEBUG_PRINTF( 15, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             wx[tokx->end - tokx->start] = 0;
             
@@ -253,7 +253,7 @@ void configResponseSTR(int K ){
             free(F_type);
         }
 
-        debug_printf( 15, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
+        DEBUG_PRINTF( 15, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
         ++M;
         jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ; 
     }
@@ -269,18 +269,18 @@ void configResponseOK(int K){
     char wx[SZ_ATCMD_HASHKEY];
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    debug_printf( 10, "ConfigResponseOK K %d  \n", T );
+    DEBUG_PRINTF( 10, "ConfigResponseOK K %d  \n", T );
 
     for( J=0; J < T ; ++J ) {
         tokx = jsmn_configTOKs + K + J;  
         strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            debug_printf( 15, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            DEBUG_PRINTF( 15, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             wx[tokx->end - tokx->start] = 0;
             add_CMDOK( wx );
         }
-        debug_printf( 15, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
+        DEBUG_PRINTF( 15, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
     }
 
 };
@@ -300,7 +300,7 @@ char **strArray(  int K ){
     pArr = (char**)malloc(w_sz);    // Area interna
     // Copia o buffer para a area interna.
     wp0 =( (char *)pArr + pdspl);  // start of internal work area
-    debug_printf( 35, "Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
+    DEBUG_PRINTF( 35, "Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
     for( int J=0 ; J < ntok->size ; ++J ){
         // Para cada string.
         pArr[J] = wp0;
@@ -308,7 +308,7 @@ char **strArray(  int K ){
         int isz = itok->end - itok->start ;
         memcpy( wp0 , bfConfig + itok->start, isz ); // Buffer copiado., 
         *(wp0+isz)=0;
-        debug_printf( 35, "Copiado %s em %p\n",wp0,wp0);        
+        DEBUG_PRINTF( 35, "Copiado %s em %p\n",wp0,wp0);        
         wp0+=isz+1;        
     } 
     pArr[ntok->size] = NULL;
@@ -338,7 +338,7 @@ u_regv_t cvtVl( int K) {
         vl.tpx = REGV_STRARR;
         
         int sz = ntok->end - ntok->start;
-        debug_printf( 25, "JSMN_ARRAY %d,%d:%d em %p => %.*s \n",
+        DEBUG_PRINTF( 25, "JSMN_ARRAY %d,%d:%d em %p => %.*s \n",
                             ntok->start ,
                             ntok->end, 
                             sz, vl.urv.pStrings , 
@@ -354,13 +354,13 @@ u_regv_t cvtVl( int K) {
 
         vl.urv.int_v = strtol( tok , &p, 0 );
         vl.tpx = REGV_INT;
-        debug_printf( 25, "->%s(%d) cvtVL strtol --> %ld ; errno = %d ; %s\n", __func__, __LINE__, vl.urv.int_v , errno, tok , (p == tok?"True":"False") );
+        DEBUG_PRINTF( 25, "-> cvtVL strtol --> %ld ; errno = %d ; %s\n", __func__, __LINE__, vl.urv.int_v , errno, tok , (p == tok?"True":"False") );
         if( vl.urv.int_v == 0 && p == tok ) {
           // Verify .  if array of tokens,   
           // or string of chars., 
           strncpy( vl.urv.ch , tok , (32>SZ_VLCMDUNION? SZ_VLCMDUNION : 32 ) );
           vl.tpx = REGV_CHAR;
-          debug_printf( 25, "->%s(%d)  cvtVL to %%%ds ..-->>> %.*s\n",__func__, __LINE__,  SZ_VLCMDUNION, SZ_VLCMDUNION, vl.urv.ch );
+          DEBUG_PRINTF( 25, "->  cvtVL to %%%ds ..-->>> %.*s\n",__func__, __LINE__,  SZ_VLCMDUNION, SZ_VLCMDUNION, vl.urv.ch );
         }
     }  
    
@@ -376,7 +376,7 @@ void configRegisters(int K){
 
     
     T = (jsmn_configTOKs + K + 1 )->size + 2;
-    debug_printf( 25, "configRegisters K %d  \n", T );
+    DEBUG_PRINTF( 25, "configRegisters K %d  \n", T );
 
     N = K + 2;
     for( J=0; J < T ; ++J ) {
@@ -388,10 +388,10 @@ void configRegisters(int K){
         strncpy(wx0, bfConfig + vltok->start, 32 );
         wx0[vltok->end - vltok->start] = 0;
         
-        debug_printf( 25, "->%s(%d) CFGTok : '%s[%d;%d]' :: [N=%d] J=%d :: Sz %d ;; vl=>%s <<\n", __func__,__LINE__,wx,tokx->start, tokx->end, N, J,  strlen(wx) ,  wx0  );
+        DEBUG_PRINTF( 25, "-> CFGTok : '%s[%d;%d]' :: [N=%d] J=%d :: Sz %d ;; vl=>%s <<\n", wx,tokx->start, tokx->end, N, J,  strlen(wx) ,  wx0  );
         
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            debug_printf( 25, "->%s(%d) Erro no ATCMD_OK  HashKey %d > %d\n",  __func__,__LINE__, tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            DEBUG_PRINTF( 25, "-> Erro no ATCMD_OK  HashKey %d > %d\n",   tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
             // convert whatever to Vl .,
             //  
@@ -402,15 +402,15 @@ void configRegisters(int K){
             add_CMDRegister( wx, cvtVl( N+1 ) );
         }
         int M = N+1;
-        debug_printf( 25,  "->%s(%d) K %d: T %d; Sz %d -->> M, N before %d ; %d  >>>  ",  __func__,__LINE__, K, T, vltok->size, M, N);
+        DEBUG_PRINTF( 25,  "-> K %d: T %d; Sz %d -->> M, N before %d ; %d  >>>  ",   K, T, vltok->size, M, N);
         if( vltok->size > 0 ) {   
-           debug_printf( 25, "   vltokSZ .. %d ,  ", vltok->size );
+           DEBUG_PRINTF( 25, "   vltokSZ .. %d ,  ", vltok->size );
            jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ;  
            N=M;
         } else {
             N+=2;
         }
-        debug_printf( 25,  "M, N after %d ; %d \n", M, N );
+        DEBUG_PRINTF( 25,  "M, N after %d ; %d \n", M, N );
     }
 
 };
@@ -427,7 +427,7 @@ void processInput( s_CMD_IN_t *p_cmd ){
         // tenta usando o modificador
         strncpy( wkey, p_cmd->cmdBase ,SZ_ATCMD_HASHKEY );
         strcat( wkey, p_cmd->cmdFlag );
-        debug_printf( debugLVL, "%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase, wkey );
+        DEBUG_PRINTF( debugLVL, "%s ; %d -- %s\n",__func__, __LINE__, p_cmd->cmdBase, wkey );
         // strncpy( wkey, p_cmd->cmdBase, SZ_ATCMD_HASHKEY );
         HASH_FIND_STR(cmdsTBL,wkey, s);  /* id already in the hash? */
     }
@@ -435,7 +435,7 @@ void processInput( s_CMD_IN_t *p_cmd ){
     if( s  == NULL ) {
         f_trata_ERROR( p_cmd, NULL );
     } else  {
-        debug_printf( 25, "%s ; %d -- %s -> %p\n",__func__, __LINE__, s->CMDpfx ,s->func );
+        DEBUG_PRINTF( 25, "%s ; %d -- %s -> %p\n",__func__, __LINE__, s->CMDpfx ,s->func );
         s->func(p_cmd, s );
     }
     
