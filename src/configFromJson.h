@@ -11,9 +11,13 @@ void kyCfg();
 
 s_CMD_IN_t *regexProc(char *p0);
 void delete_CMD(atCmds *s_cmd);
-void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) ;
-void add_CMDRegister(const char *cmd, u_regv_t Vl ) ;
-void add_CMDOK(const char *cmd) ;
+int add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) ;
+int add_CMDRegister(const char *cmd, u_regv_t Vl ) ;
+int add_CMDOK(const char *cmd) ;
     
+    
+int configResponseOK(int K);
+int  configRegisters(int K);
+int configResponseSTR(int K);
 
 #endif

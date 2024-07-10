@@ -27,6 +27,7 @@ void debug_printf( int debugLvl, char *format, ...){
         va_list ap;
         va_start(ap, format);
         
+        // fprintf(fdebug,"-->>> %s <<<----\n", format );
         vfprintf( fdebug, format , ap );
         
         va_end(ap);

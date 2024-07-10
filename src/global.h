@@ -14,8 +14,11 @@
 #include <sys/mman.h>
 #include <stdarg.h>
 
+#define JSMN_HEADER
+#define JSMN_PARENT_LINKS 1
+#include "jsmn.h"
+// #include "jsmninc.h"
 
-#include "jsmninc.h"
 #include "uthash.h"
 #include "enums.h"
 
@@ -92,6 +95,7 @@ struct atCmds {
 typedef void (*v_func_t)(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...)  ;  
 void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
 
+int dump(const char *js, jsmntok_t *t, size_t count, int indent);
 
 
 extern jsmn_parser jsmn_config_SRC;
@@ -100,7 +104,6 @@ extern jsmntok_t jsmn_configTOKs[];
 
 
 extern s_CMD_IN_t *regexProc(char *p0);
-extern char **strArray(  int K );
 
 
 #define SILENCETIMEOUT  1000
@@ -110,10 +113,6 @@ extern char *filename; // /etc/rc.conf";
 extern char s_atResponsesSTR[];
 extern char s_atResponsesOK[];
 extern char s_atDFLReg[];
-
-void configResponseOK(int K);
-void configResponseSTR(int K );
-void configRegisters(int K);
 
 extern char *bfConfig;
 

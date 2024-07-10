@@ -20,7 +20,6 @@ void f_trata_ATZ(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
 void f_trata_ERROR(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
 void f_trata_ABORT(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
 
-extern char **strArray(  int K );
 
 //  Ref:: https://pokristensson.com/strmap.html
 //  https://troydhanson.github.io/uthash/userguide.html
@@ -145,9 +144,13 @@ extern k_trata_dict K_TRATA_CALL[] ;
 extern char s_atResponsesSTR[];
 extern char s_atResponsesOK[];
 extern char s_atDFLReg[];
-void configResponseSTR(int K_cfg );
-void configResponseOK(int K);
-void configRegisters(int K);
+
+
+int strArray( char ***vls, int K ) ;
+
+
+void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
+    
 
 extern  jsmn_parser jsmn_config_SRC;
 #define CONFIGTOKS   2048

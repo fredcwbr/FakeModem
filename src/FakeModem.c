@@ -23,8 +23,6 @@ jsmn_parser jsmn_config_SRC;
 jsmntok_t jsmn_configTOKs[CONFIGTOKS]; /* We expect <<CONFIGTOKS>> JSON tokens */
 
 
-void dummyProc(s_CMD_IN_t *cmdIn, atCmds *atCmd , ...);
-    
 
 // State machine ..
 enum mdmSTATE modemState;
@@ -213,34 +211,38 @@ v_func_t configResponseFunction( char *F_type, ... ) {
 }
 
 
-void configResponseSTR(int K ){
+int configResponseSTR(int K ){
     // Incluir respostas com funcoes atribuidas.,
     // e resultados que alterem o estado da maquina.
     // char *F_type, atCmds *vl 
-    
+    // K é o indice desse vetor  de comandos/[[respostas], FuncaoTratamento], 
+    // 
     jsmntok_t *tokx,*tokf;
-    int J, M, N, T;
+    int J, M, N, T, dM;
     char wx[SZ_ATCMD_HASHKEY];
     char **Vls;
     v_func_t func;
     char *F_type;
     
-    T = (jsmn_configTOKs + K + 1 )->size + 2;
-    DEBUG_PRINTF( 10, "configResponseSTR K %d  \n", T );
+    T = (jsmn_configTOKs + K +1 )->size ;   // 
+    DEBUG_PRINTF( 10, "Indice KY=> %d , Vetor respostas => %d  \n", K, T );
 
-    M  = K+2;
+    M  = K+2; // Inicio do vetor de respostas., 
     for( J=0; J < T ; ++J ) {
-        tokx = jsmn_configTOKs + M;  
+        tokx = jsmn_configTOKs + M;  // Resposta a ser adicionada no array desse ATCMD
         strncpy(wx, bfConfig + tokx->start, SZ_ATCMD_HASHKEY );
         if((tokx->end - tokx->start) >= SZ_ATCMD_HASHKEY ){
-            DEBUG_PRINTF( 15, "Erro no ATCMD_OK  HashKey %d > %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
+            DEBUG_PRINTF( 15, "Erro no ATCMD_OK  HashKey END %d > START %d\n", tokx->end - tokx->start, SZ_ATCMD_HASHKEY );
         } else {
-            wx[tokx->end - tokx->start] = 0;
+            wx[tokx->end - tokx->start] = 0; // garantia da integridade da string
             
-            Vls = strArray( M+2 );  // primeiro array com os dados de resposta
+            DEBUG_PRINTF( 20, "KY(wx) => %s\n", wx );
+            // Consome um array de strings, formando um strArray para anexar a resposta.
+            dM = strArray( &Vls,  M+2 );  // primeiro array com os dados de resposta
             // Segundo elemento é o tipo de funcao que trata o comando
-            N = M+2;
-            jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &N ) ; 
+            M += + dM +1;
+            N = M; //Proximo elemento a ser verificado., 
+            // jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &N ) ; 
             
             tokf = jsmn_configTOKs+N;
             F_type = malloc( (tokf->end - tokf->start) + 1);
@@ -251,11 +253,12 @@ void configResponseSTR(int K ){
             add_CMDResponseSTR(wx, func, Vls  );
             // add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls  );
             free(F_type);
+            ++M;  // Proximo elemento .. 
         }
 
         DEBUG_PRINTF( 15, "CFGTok : '%s' :: %d :: Sz %d \n",wx, J,  strlen(wx)   );
         ++M;
-        jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ; 
+        //jsmn_nested_skip(jsmn_configTOKs, jsmn_config_SRC.toknext, &M ) ; 
     }
 
     // configResponseFunction( F_type, vl );
@@ -263,7 +266,7 @@ void configResponseSTR(int K ){
         
 };
 
-void configResponseOK(int K){
+int configResponseOK(int K){
     jsmntok_t *tokx;
     int J, T;
     char wx[SZ_ATCMD_HASHKEY];
@@ -286,13 +289,14 @@ void configResponseOK(int K){
 };
 
 
-char **strArray(  int K ){
+int strArray( char ***vls , int K ) {
     char **pArr;
     char *wp0;
     int  w_sz;
     int  pdspl;
     jsmntok_t *itok;
     jsmntok_t *ntok;
+    int z, J;
     
     ntok =  jsmn_configTOKs + K;
     pdspl = (ntok->size+1)*sizeof(void *);
@@ -301,7 +305,7 @@ char **strArray(  int K ){
     // Copia o buffer para a area interna.
     wp0 =( (char *)pArr + pdspl);  // start of internal work area
     DEBUG_PRINTF( 35, "Alloc em %p ; Adicionando .. %d strings %.*s\n", pArr, ntok->size ,(ntok->end - ntok->start), bfConfig + ntok->start );
-    for( int J=0 ; J < ntok->size ; ++J ){
+    for( J=0 ; J < ntok->size ; ++J ){
         // Para cada string.
         pArr[J] = wp0;
         itok = jsmn_configTOKs + K + J + 1;
@@ -312,7 +316,8 @@ char **strArray(  int K ){
         wp0+=isz+1;        
     } 
     pArr[ntok->size] = NULL;
-    return( pArr );
+    *vls = pArr;
+    return( K+2*(J+1)+1 );
 }
 
 u_regv_t cvtVl( int K) {
@@ -334,7 +339,7 @@ u_regv_t cvtVl( int K) {
         // cpy strings to internal area.,
         // 
         // for( int k=0; k < t->size ; ++k ) {
-        vl.urv.pStrings = strArray( K );  
+        strArray( &vl.urv.pStrings, K );  
         vl.tpx = REGV_STRARR;
         
         int sz = ntok->end - ntok->start;
@@ -368,7 +373,7 @@ u_regv_t cvtVl( int K) {
 }
 
 
-void configRegisters(int K){
+int configRegisters(int K){
     jsmntok_t *tokx, *vltok;
     int J, T, N;
     char wx[32];

@@ -6,18 +6,21 @@
 void kyCfg(){
     // const char *js, jsmntok_t *t, size_t count, int indent;
     jsmntok_t *t,*key_t,*tokx;
-    int K=1,J=0;
+    int K,J, dK;
     
-    t = jsmn_configTOKs;
-    J = t->size;
-    DEBUG_PRINTF( 20, "Raiz %d\n" , t->size );
+    dump(bfConfig, jsmn_configTOKs, 147 , 0 );
+    
+    J = jsmn_configTOKs[0].size ;
+    K=1;    // Initial Object .. 
+    DEBUG_PRINTF( 20, "Raiz com %d paragrafos\n" , J );  // Numero de paragrafos no config.
     do {        
         tokx = jsmn_configTOKs + K;
         char *sstart = bfConfig + tokx->start;
         int lenx = tokx->end - tokx->start;
         if( tokx->end < tokx->start ) {
-            DEBUG_PRINTF( 25, "%s, %d : End < Start K=%d... End:%d  Start:%d \n" , __func__, __LINE__, K ,tokx->end , tokx->start);
-            K += 1;
+            // Estamos no  lugar  errado ;;;
+            DEBUG_PRINTF( 25, "Lugar errado : End=%d < Start=%d \n" , K ,tokx->end , tokx->start);
+            K += 1; // proximo token de qualquer forma., 
         } else if( tokx->type & (JSMN_PRIMITIVE | JSMN_STRING )  == (JSMN_PRIMITIVE | JSMN_STRING )  ) {
             // 'atResponsesSTR'
             // 'atResponsesOK'
@@ -25,17 +28,17 @@ void kyCfg(){
             if( strncmp(s_atResponsesOK,sstart,strlen(s_atResponsesOK) ) == 0 ){
                 //
                 DEBUG_PRINTF( 35, "-> ADD OK --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
-                configResponseOK(K);
+                dK = configResponseOK(K);
             } else if( strncmp(s_atDFLReg,sstart,strlen(s_atDFLReg) ) == 0 ){
                 DEBUG_PRINTF( 35, "-> ADD REG --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
-                configRegisters(K);
+                dK = configRegisters(K);
             } else if( strncmp(s_atResponsesSTR ,sstart,strlen(s_atResponsesSTR) ) == 0 ) {
                 DEBUG_PRINTF( 35, "-> ADD STR --> K=%d :: Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
-                configResponseSTR(K);
+                dK = configResponseSTR(K);
             }
             DEBUG_PRINTF( 25, "-> K=%d :: Primitiva ..  Sz %d : '%.*s'\n",  K, tokx->size, lenx, sstart  );
             --J;  
-            ++K;
+            K + dK; // Processou esse parametro., 
         } else if (t->type == JSMN_OBJECT) {
             DEBUG_PRINTF( 25, "%s, %d : Inside object K=%d... \n" , __func__, __LINE__, K );
             DEBUG_PRINTF( 25, "-> K=%d  :: Sz %d : '%.*s'\n",  K,  tokx->size, lenx, sstart  );
@@ -49,7 +52,7 @@ void kyCfg(){
             DEBUG_PRINTF( 25, "->%d  :: Sz %d : '%.*s'\n",  K,  tokx->size, lenx, sstart  );
             jsmn_nested_skip(jsmn_configTOKs,jsmn_config_SRC.toknext,&K);
         }
-    } while( K < jsmn_config_SRC.toknext  && J > 0 );
+    } while( K < jsmn_config_SRC.toknext  && --J > 0 );
     
 }
 
@@ -78,7 +81,7 @@ void jsmn_nested_skip(const jsmntok_t* tok, int num_tokens, int* i)
 }
 
 
-void add_CMDOK(const char *cmd) {
+int add_CMDOK(const char *cmd) {
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
     
@@ -102,7 +105,7 @@ void add_CMDOK(const char *cmd) {
 
 
 
-void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
+int add_CMDRegister(const char *cmd, u_regv_t Vl ) {
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
     
@@ -123,7 +126,7 @@ void add_CMDRegister(const char *cmd, u_regv_t Vl ) {
 
 
 
-void add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
+int add_CMDResponseSTR(const char *cmd, v_func_t func, char **Vls ) {
     char   wkey[SZ_ATCMD_HASHKEY];
     struct atCmds *s;
     
